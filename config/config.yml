@@ -1,0 +1,11 @@
+auth:
+  enabled: false
+  username: admin
+  password: admin
+
+mergerfs:
+  enabled: true
+
+ownership:
+  uid: 1000
+  gid: 1000
