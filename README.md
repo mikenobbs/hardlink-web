@@ -1,4 +1,16 @@
-# hardlink-web
+<div align="center">
+  
+hardlink-web
+  
+</div>
+
+<div align="center">
+  
+  [![GitHub Release](https://img.shields.io/github/v/release/mikenobbs/hardlonk-web?include_prereleases&display_name=release&style=flat)](https://github.com/mikenobbs/hardlink-web/releases)
+  [![GitHub Repo stars](https://img.shields.io/github/stars/mikenobbs/hardlink-web?style=flat)](https://github.com/mikenobbs/hardlink-web/stargazers)
+  [![GitHub watchers](https://img.shields.io/github/watchers/mikenobbs/hardlink-web)](https://github.com/mikenobbs/hardlink-web/watchers)
+    
+</div>
 
 A browser-based UI for creating hardlinks between files on a mergerfs media server.
 
@@ -59,6 +71,24 @@ http://your-server-ip:8088
 
 -----
 
+## docker-compose example
+
+```yaml
+services:
+  hardlink-web:
+    image: mikenobbs/hardlink-web
+    container_name: hardlink-web
+    ports:
+      - "8088:8088"
+    volumes:
+      - /path/to/your/media:/data
+      - /path/to/raw/disks:/path/to/raw/disks
+      - /path/to/config:/config
+    restart: unless-stopped
+```
+
+-----
+
 ## Configuration
 
 Edit `/config/config.yml`:
@@ -81,26 +111,9 @@ Changes to config require a container restart.
 
 -----
 
-## docker-compose example
-
-```yaml
-services:
-  hardlink-web:
-    image: mikenobbs/hardlink-web
-    container_name: hardlink-web
-    ports:
-      - "8088:8088"
-    volumes:
-      - /path/to/your/media:/data
-      - /path/to/raw/disks:/path/to/raw/disks
-      - /path/to/config:/config
-    restart: unless-stopped
-```
-
------
-
 ## Notes
 
 - Hardlinks only work within the same underlying filesystem. If you get a cross-device error, the source and destination are on different drives in your pool.
 - Auth uses HTTP Basic. If exposing outside your local network, put it behind a reverse proxy with HTTPS.
 - Logs are written to `/config/logs/` and automatically cleaned up after 7 days.
+- App was coded with the assistance of AI.
