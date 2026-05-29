@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h1>Hardlink-Web</h1>
+
+<section class="panel">
+  <h2>Browse</h2>
+  <div class="field">
+    <label>Current folder</label>
+    <input value="/{{ path }}" readonly />
+  </div>
+
+  <div class="bar">
+    {% if back == "manage" %}
+      <a class="btn" href="{{ url_for('manage_page', base=base, selected=selected, dest=dest, conflict=conflict) }}">Back</a>
+    {% else %}
+      <a class="btn" href="{{ url_for('link_page', src=src, dst=dst, mode=mode, conflict=conflict) }}">Back</a>
+    {% endif %}
+
+    <span class="spacer"></span>
+
+    {% if back == "manage" %}
+      {% if kind == "manage_base" %}
+        <a class="btn btn-primary" href="{{ url_for('manage_page', base=path, selected=selected, dest=dest, conflict=conflict) }}">Use as base</a>
+      {% elif kind == "manage_dest" %}
+        <a class="btn btn-primary" href="{{ url_for('manage_page', base=base, selected=selected, dest=path, conflict=conflict) }}">Use as destination</a>
+      {% endif %}
+    {% else %}
+      {% if kind == "src" %}
+        <a class="btn btn-primary" href="{{ url_for('link_page', src=path, dst=dst, mode=mode, conflict=conflict) }}">Use as source</a>
+      {% elif kind == "dst" %}
+        <a class="btn btn-primary" href="{{ url_for('link_page', src=src, dst=path, mode=mode, conflict=conflict) }}">Use as destination</a>
+      {% endif %}
+    {% endif %}
+  </div>
+</section>
+
+{% set current_name = path.rsplit('/', 1)[-1] if path else '' %}
+{% set show_create = (back != "manage" and kind == "dst") or (back == "manage" and kind == "manage_dest") %}
+{% set show_both = current_name and show_create %}
+
+{% if show_both %}<div class="panel-row-pair">{% endif %}
+
+{% if current_name %}
+<section class="panel">
+  <h2>Rename current folder</h2>
+  <form method="post" action="{{ url_for('renamefolder') }}">
+    <input type="hidden" name="path" value="{{ path }}" />
+    <input type="hidden" name="kind" value="{{ kind }}" />
+    <input type="hidden" name="back" value="{{ back }}" />
+    <input type="hidden" name="src" value="{{ src }}" />
+    <input type="hidden" name="dst" value="{{ dst }}" />
+    <input type="hidden" name="base" value="{{ base }}" />
+    <input type="hidden" name="selected" value="{{ selected }}" />
+    <input type="hidden" name="mode" value="{{ mode }}" />
+    <input type="hidden" name="conflict" value="{{ conflict }}" />
+    <input type="hidden" name="dest" value="{{ dest }}" />
+    <div class="panel-row">
+      <input name="new_name" placeholder="New folder name" value="{{ current_name }}" autocomplete="off" required />
+      <button class="btn btn-primary" type="submit">Rename</button>
+    </div>
+  </form>
+</section>
+{% endif %}
+
+{% if show_create %}
+<section class="panel">
+  <h2>Create folder</h2>
+  <form method="post" action="{{ url_for('mkfolder') }}">
+    <input type="hidden" name="parent" value="{{ path }}" />
+    <input type="hidden" name="kind" value="{{ kind }}" />
+    <input type="hidden" name="back" value="{{ back }}" />
+    <input type="hidden" name="src" value="{{ src }}" />
+    <input type="hidden" name="dst" value="{{ dst }}" />
+    <input type="hidden" name="base" value="{{ base }}" />
+    <input type="hidden" name="selected" value="{{ selected }}" />
+    <input type="hidden" name="mode" value="{{ mode }}" />
+    <input type="hidden" name="conflict" value="{{ conflict }}" />
+    <input type="hidden" name="dest" value="{{ dest }}" />
+    <div class="panel-row">
+      <input name="name" placeholder="New folder name" autocomplete="off" required />
+      <button class="btn btn-primary" type="submit">Create</button>
+    </div>
+  </form>
+</section>
+{% endif %}
+
+{% if show_both %}</div>{% endif %}
+
+<section class="panel">
+  <h2>Subfolders</h2>
+  <label>Tap a folder to browse into it.</label>
+
+  <div class="field">
+    <input type="text" id="folderSearch" placeholder="Search folders..." autocomplete="off" />
+  </div>
+
+  <div class="file-list" id="folderList">
+    {% if path %}
+      {% set parent = path.rsplit('/', 1)[0] if '/' in path else '' %}
+      <a class="file-item" href="{{ url_for('browse', kind=kind, path=parent, back=back, src=src, dst=dst, base=base, selected=selected, mode=mode, conflict=conflict, dest=dest) }}">
+        <span class="file-name">.. (up one level)</span>
+        <span class="file-size">/</span>
+      </a>
+    {% endif %}
+
+    {% for name, rel in dirs %}
+      <a class="file-item" data-folder-name="{{ name }}" href="{{ url_for('browse', kind=kind, path=rel, back=back, src=src, dst=dst, base=base, selected=selected, mode=mode, conflict=conflict, dest=dest) }}">
+        <span class="file-name" title="{{ name }}">{{ name }}</span>
+        <span class="file-size">/</span>
+      </a>
+    {% else %}
+      <p class="muted">No subfolders.</p>
+    {% endfor %}
+  </div>
+</section>
+
+{% endblock %}

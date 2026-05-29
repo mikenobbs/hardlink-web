@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h1>Results</h1>
+
+<div class="panel">
+  <h2>Success</h2>
+  {% if results|length == 0 %}
+    <p class="muted">No successful operations.</p>
+  {% else %}
+    <ul class="result-list">
+      {% for name, msg in results %}
+        <li><code>{{ name }}</code> — {{ msg }}</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+
+  <h2>Errors</h2>
+  {% if errors|length == 0 %}
+    <p class="muted">No errors.</p>
+  {% else %}
+    <ul class="result-list result-errors">
+      {% for name, msg in errors %}
+        <li><code>{{ name }}</code> — {{ msg }}</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+
+  <div class="bar">
+    <a class="btn" href="{{ back_url }}">Back</a>
+  </div>
+</div>
+
+{% endblock %}

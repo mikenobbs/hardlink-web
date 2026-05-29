@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="header-bar">
+  <h1>Hardlink-Web</h1>
+  <div class="menu-hamburger" id="menuHamburger" role="button" tabindex="0" aria-label="Menu">
+    <span></span>
+    <span></span>
+    <span></span>
+  </div>
+  <div class="menu-dropdown" id="menuDropdown">
+    <form method="get" action="{{ url_for('link_page') }}" class="settings-form">
+      <input type="hidden" name="src" value="{{ src }}">
+      <input type="hidden" name="dst" value="{{ dst }}">
+
+      <div class="field">
+        <label>Folder structure</label>
+        <select name="mode">
+          <option value="flatten" {% if mode=='flatten' %}selected{% endif %}>Flatten (default)</option>
+          <option value="preserve" {% if mode=='preserve' %}selected{% endif %}>Preserve paths</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>On name conflict</label>
+        <select name="conflict">
+          <option value="suffix" {% if conflict=='suffix' %}selected{% endif %}>Add suffix (default)</option>
+          <option value="skip" {% if conflict=='skip' %}selected{% endif %}>Skip</option>
+          <option value="overwrite" {% if conflict=='overwrite' %}selected{% endif %}>Overwrite</option>
+        </select>
+      </div>
+
+      <div class="menu-footer">
+        <label class="checkline">
+          <input type="checkbox" name="clean" value="1" {% if clean %}checked{% endif %}>
+          <span>Clean filenames</span>
+        </label>
+        <button class="btn" type="submit">Apply</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<form class="panel" method="get" action="{{ url_for('link_page') }}">
+  <h2>Directories</h2>
+
+  <div class="field">
+    <label>Source</label>
+    <div class="panel-row">
+      <input name="src" value="{{ src }}" placeholder="e.g. downloads/books" autocomplete="off" />
+      <a class="btn" href="{{ url_for('browse', kind='src', path=src, back='link', src=src, dst=dst, mode=mode, conflict=conflict) }}">Browse</a>
+    </div>
+  </div>
+
+  <div class="field">
+    <label>Destination</label>
+    <div class="panel-row">
+      <input name="dst" value="{{ dst }}" placeholder="e.g. Books/Author/Title" autocomplete="off" />
+      <a class="btn" href="{{ url_for('browse', kind='dst', path=dst, back='link', src=src, dst=dst, mode=mode, conflict=conflict) }}">Browse</a>
+    </div>
+  </div>
+</form>
+
+<form class="panel panel-files" method="post" action="{{ url_for('do_hardlink') }}" id="hardlinkForm">
+  <input type="hidden" name="src" value="{{ src }}">
+  <input type="hidden" name="dst" value="{{ dst }}">
+  <input type="hidden" name="mode" value="{{ mode }}">
+  <input type="hidden" name="conflict" value="{{ conflict }}">
+  <input type="hidden" name="clean" value="{{ '1' if clean else '' }}">
+
+  <div class="panel-head">
+    <h2>Files</h2>
+    <div class="btn-group">
+      <button class="btn" type="button" id="selectAllBtn">Select all</button>
+      <button class="btn" type="button" id="selectNoneBtn">None</button>
+    </div>
+  </div>
+
+  {% if files|length == 0 %}
+    <p class="muted">No files found.</p>
+  {% else %}
+    <div class="file-list">
+      {% for f in files %}
+        <div class="file-block" data-fileblock>
+          <label class="file-item">
+            <div class="file-meta">
+              <div class="file-name" title="{{ f.name }}">{{ f.name }}</div>
+              <div class="file-size">{{ (f.size / (1024*1024))|round(1) }} MB</div>
+            </div>
+            <input type="checkbox" name="selected" value="{{ f.rel_under_dir }}" data-filecheck>
+          </label>
+          <div class="rename-wrap" data-renamewrap>
+            <input type="text" name="rename_{{ loop.index0 }}" placeholder="Rename (optional)" data-renameinput autocomplete="off">
+            <input type="hidden" name="rename_key_{{ loop.index0 }}" value="{{ f.rel_under_dir }}">
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+    <div class="bar">
+      <a class="btn btn-danger" href="{{ url_for('link_page') }}">Reset</a>
+      <span class="spacer"></span>
+      <span class="bar-mid"><span id="selectedCount">0</span> selected</span>
+      <button class="btn btn-primary" type="submit">Hardlink</button>
+    </div>
+  {% endif %}
+</form>
+
+{% endblock %}
