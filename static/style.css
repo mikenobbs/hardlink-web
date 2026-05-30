@@ -1,6 +1,4 @@
-/* =========================
-   Variables
-   ========================= */
+/* Variables */
 
 :root {
   --bg:           #0e1a1f;
@@ -26,9 +24,7 @@
 }
 
 
-/* =========================
-   Reset & base
-   ========================= */
+/* Reset & base */
 
 *, *::before, *::after {
   box-sizing: border-box;
@@ -57,9 +53,7 @@ body {
 }
 
 
-/* =========================
-   Headings
-   ========================= */
+/*  Headings */
 
 h1 {
   font-size: 28px;
@@ -74,9 +68,7 @@ h2 {
 }
 
 
-/* =========================
-   Panel
-   ========================= */
+/* Panel */
 
 .panel {
   background: var(--panel);
@@ -87,9 +79,7 @@ h2 {
 }
 
 
-/* =========================
-   Fields & inputs
-   ========================= */
+/* Fields & inputs */
 
 .field {
   margin-bottom: var(--gap-sm);
@@ -134,9 +124,7 @@ input[readonly] {
 }
 
 
-/* =========================
-   Panel row (input + button side by side)
-   ========================= */
+/* Panel row = */
 
 .panel-row {
   display: flex;
@@ -154,9 +142,7 @@ input[readonly] {
 }
 
 
-/* =========================
-   Buttons
-   ========================= */
+/* Buttons */
 
 .btn {
   display: inline-block;
@@ -205,9 +191,7 @@ input[readonly] {
 }
 
 
-/* =========================
-   Bar (bottom action row)
-   ========================= */
+/*  Bar (bottom action row) */
 
 .bar {
   display: flex;
@@ -226,9 +210,7 @@ input[readonly] {
 }
 
 
-/* =========================
-   Panel head (title + btn-group on same row)
-   ========================= */
+/* Panel head */
 
 .panel-head {
   display: flex;
@@ -242,9 +224,7 @@ input[readonly] {
 }
 
 
-/* =========================
-   File list (link page + browse page)
-   ========================= */
+/* File list */
 
 .file-list {
   display: flex;
@@ -306,19 +286,14 @@ input[readonly] {
 }
 
 
-/* =========================
-   Panel-files specific
-   (JS uses .panel-files and .has-rename)
-   ========================= */
+/*  Panel-files specific */
 
 .panel-files.has-rename .bar {
   margin-top: 14px;
 }
 
 
-/* =========================
-   Side-by-side panels (browse: rename + create)
-   ========================= */
+/* Side-by-side panels */
 
 .panel-row-pair {
   display: grid;
@@ -338,9 +313,7 @@ input[readonly] {
 }
 
 
-/* =========================
-   Header bar + hamburger menu
-   ========================= */
+/*  Header bar + hamburger menu */
 
 .header-bar {
   position: relative;
@@ -426,9 +399,7 @@ input[readonly] {
 }
 
 
-/* =========================
-   Result lists
-   ========================= */
+/*  Result lists */
 
 .result-list {
   padding-left: 18px;
@@ -453,9 +424,7 @@ input[readonly] {
 }
 
 
-/* =========================
-   Toast
-   ========================= */
+/* Toast */
 
 .toast {
   background: var(--panel);
@@ -471,9 +440,7 @@ input[readonly] {
 }
 
 
-/* =========================
-   Utilities
-   ========================= */
+/* Utilities */
 
 .muted {
   color: var(--text-muted);
