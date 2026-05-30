@@ -1,0 +1,42 @@
+name: Docker Build
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+jobs:
+  docker-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Login to Docker Registry
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Get Tag
+        id: get_version
+        uses: baileyherbert/version-action@v3
+        
+      - name: Build and Push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ vars.DOCKER_USERNAME }}/${{ vars.DOCKER_REPO }}:${{ steps.get_version.outputs.version-without-v }}
+            ${{ vars.DOCKER_USERNAME }}/${{ vars.DOCKER_REPO }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
