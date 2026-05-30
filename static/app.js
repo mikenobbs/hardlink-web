@@ -2,7 +2,6 @@
   function qs(sel, root=document){ return root.querySelector(sel); }
   function qsa(sel, root=document){ return Array.from(root.querySelectorAll(sel)); }
 
-  // Hamburger menu
   const hamburger = qs("#menuHamburger");
   const dropdown = qs("#menuDropdown");
   if (hamburger && dropdown) {
@@ -10,14 +9,12 @@
       dropdown.classList.toggle("is-open");
     });
     
-    // Close menu when clicking outside
     document.addEventListener("click", (e) => {
       if (!hamburger.contains(e.target) && !dropdown.contains(e.target)) {
         dropdown.classList.remove("is-open");
       }
     });
     
-    // Close menu when form is submitted
     const form = qs(".settings-form", dropdown);
     if (form) {
       form.addEventListener("submit", () => {
@@ -26,13 +23,11 @@
     }
   }
 
-  // Collapsibles
   qsa("[data-collapse-toggle]").forEach(btn => {
     const targetSel = btn.getAttribute("data-collapse-toggle");
     const target = qs(targetSel);
     if (!target) return;
 
-    // Default collapsed
     target.classList.add("is-collapsed");
     btn.setAttribute("aria-expanded", "false");
 
@@ -44,12 +39,10 @@
     });
   });
 
-  // Browse page: folder search and alphabet navigation
   if (qs("#folderSearch")) {
     const folderSearch = qs("#folderSearch");
     const folderList = qs("#folderList");
 
-    // Real-time search filtering
     folderSearch.addEventListener("input", function() {
       const searchTerm = this.value.toLowerCase().trim();
       const folders = folderList.querySelectorAll("[data-folder-name]");
@@ -61,7 +54,6 @@
     });
   }
 
-  // Link page helpers
   const form = qs("#hardlinkForm");
   if (!form) return;
 
