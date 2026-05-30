@@ -9,6 +9,8 @@ WORKDIR /app
 COPY app.py /app/app.py
 COPY templates /app/templates
 COPY static /app/static
+COPY config.yml /app/config.yml
+COPY entrypoint.sh /app/entrypoint.sh
 
 RUN pip install --no-cache-dir flask pyyaml
 
@@ -16,4 +18,4 @@ RUN python -c "import secrets; open('/app/.secret_key', 'w').write(secrets.token
 
 EXPOSE 8088
 
-CMD ["python", "/app/app.py"]
+CMD ["/app/entrypoint.sh"]
