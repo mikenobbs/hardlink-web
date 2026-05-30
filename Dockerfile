@@ -9,7 +9,7 @@ WORKDIR /app
 COPY app.py /app/app.py
 COPY templates /app/templates
 COPY static /app/static
-COPY config.yml /app/config.yml
+COPY config/config.yml /app/config.yml
 COPY entrypoint.sh /app/entrypoint.sh
 
 RUN pip install --no-cache-dir flask pyyaml
