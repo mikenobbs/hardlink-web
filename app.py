@@ -30,10 +30,6 @@ LOG_DIR = Path("/config/logs")
 LOG_PREFIX = "hardlink"
 LOG_RETENTION_DAYS = 7
 
-
-# -----------------------
-# Config
-# -----------------------
 def load_config() -> dict:
     try:
         if os.path.isfile(CONFIG_PATH):
@@ -43,27 +39,19 @@ def load_config() -> dict:
         pass
     return {}
 
-
 CONFIG = load_config()
 OWN_UID = int(CONFIG.get("ownership", {}).get("uid"))
 OWN_GID = int(CONFIG.get("ownership", {}).get("gid"))
 
-
 def mergerfs_enabled() -> bool:
     return bool(CONFIG.get("mergerfs", {}).get("enabled", True))
 
-
-# -----------------------
-# Auth
-# -----------------------
 def auth_enabled() -> bool:
     return bool(CONFIG.get("auth", {}).get("enabled"))
-
 
 def check_auth(auth) -> bool:
     a = CONFIG.get("auth", {})
     return auth and auth.username == a.get("username") and auth.password == a.get("password")
-
 
 @app.before_request
 def require_basic_auth():
@@ -77,10 +65,6 @@ def require_basic_auth():
             {"WWW-Authenticate": 'Basic realm="Hardlink Web"'},
         )
 
-
-# -----------------------
-# Logging + ownership helpers
-# -----------------------
 def safe_chown(path: str) -> None:
     try:
         if os.path.islink(path):
@@ -88,7 +72,6 @@ def safe_chown(path: str) -> None:
         os.chown(path, OWN_UID, OWN_GID)
     except Exception:
         pass
-
 
 def mkdirs_and_chown(dir_path: str) -> None:
     """
@@ -106,7 +89,6 @@ def mkdirs_and_chown(dir_path: str) -> None:
             os.mkdir(cur)
             safe_chown(cur)
 
-
 def cleanup_old_logs() -> None:
     cutoff = datetime.datetime.now() - datetime.timedelta(days=LOG_RETENTION_DAYS)
     for p in LOG_DIR.glob(f"{LOG_PREFIX}-*.log"):
@@ -117,7 +99,6 @@ def cleanup_old_logs() -> None:
                 p.unlink(missing_ok=True)
         except Exception:
             pass
-
 
 def log(msg: str) -> None:
     LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -135,13 +116,8 @@ def log(msg: str) -> None:
     cleanup_old_logs()
     print(line, flush=True)
 
-
-# -----------------------
-# Path helpers
-# -----------------------
 def norm_rel(p: str) -> str:
     return (p or "").strip().replace("\\", "/").lstrip("/").strip("/")
-
 
 def safe_join(root: str, rel: str) -> str:
     rel = norm_rel(rel)
@@ -151,12 +127,10 @@ def safe_join(root: str, rel: str) -> str:
         raise ValueError("Path escape blocked")
     return full
 
-
 def is_under(path: str, root: str) -> bool:
     rr = os.path.realpath(root)
     rp = os.path.realpath(path)
     return rp == rr or rp.startswith(rr + os.sep)
-
 
 def rel_from_root(full: str) -> str:
     root_real = os.path.realpath(DATA_ROOT)
@@ -166,7 +140,6 @@ def rel_from_root(full: str) -> str:
     if not full_real.startswith(root_real + os.sep):
         raise ValueError("Not under /data")
     return full_real[len(root_real) + 1 :]
-
 
 def unique_path(dest_path: str) -> str:
     if not os.path.exists(dest_path):
@@ -179,10 +152,6 @@ def unique_path(dest_path: str) -> str:
             return cand
         i += 1
 
-
-# -----------------------
-# Filename helpers (rename feature)
-# -----------------------
 def safe_filename(name: str) -> str:
     """
     Make sure the user cannot inject paths. Only a basename is allowed.
@@ -194,7 +163,6 @@ def safe_filename(name: str) -> str:
         raise ValueError("Invalid filename")
     return name
 
-
 def clean_filename(name: str) -> str:
     """
     Dots/underscores -> spaces, collapse whitespace. Keeps extension.
@@ -204,16 +172,11 @@ def clean_filename(name: str) -> str:
     base = re.sub(r"\s+", " ", base).strip()
     return base + ext
 
-
-# -----------------------
-# Directory listing
-# -----------------------
 @dataclass
 class FileEntry:
     name: str
     rel_under_dir: str
     size: int
-
 
 def list_dirs(rel_dir: str) -> List[Tuple[str, str]]:
     rel_dir = norm_rel(rel_dir)
@@ -228,7 +191,6 @@ def list_dirs(rel_dir: str) -> List[Tuple[str, str]]:
         pass
     return out
 
-
 def list_files(rel_dir: str) -> List[FileEntry]:
     rel_dir = norm_rel(rel_dir)
     full = safe_join(DATA_ROOT, rel_dir)
@@ -242,10 +204,6 @@ def list_files(rel_dir: str) -> List[FileEntry]:
         pass
     return out
 
-
-# -----------------------
-# mergerfs xattr helpers
-# -----------------------
 def get_xattr_str(path: str, attr: str) -> str:
     try:
         val = os.getxattr(path, attr)
@@ -253,20 +211,14 @@ def get_xattr_str(path: str, attr: str) -> str:
     except OSError as e:
         raise OSError(f"Cannot read xattr '{attr}' on '{path}': {e}") from e
 
-
 def mergerfs_basepath(pool_path: str) -> str:
     return get_xattr_str(pool_path, "user.mergerfs.basepath")
-
 
 def mergerfs_fullpath(pool_path: str) -> str:
     return get_xattr_str(pool_path, "user.mergerfs.fullpath")
 
-
 def pool_to_same_branch_dest(basepath: str, dest_pool_path: str) -> str:
-    """
-    Convert a destination under /data to an absolute destination on the SAME branch
-    by prefixing with mergerfs basepath (host absolute path). Container must see it.
-    """
+    
     if not is_under(dest_pool_path, DATA_ROOT):
         raise ValueError("Destination not under /data")
 
@@ -283,14 +235,9 @@ def pool_to_same_branch_dest(basepath: str, dest_pool_path: str) -> str:
     dest_rel = rel_from_root(dest_pool_path)
     return os.path.join(base, dest_rel)
 
-
-# -----------------------
-# Routes
-# -----------------------
 @app.get("/")
 def home():
     return redirect(url_for("link_page"))
-
 
 @app.get("/link")
 def link_page():
@@ -311,7 +258,6 @@ def link_page():
         conflict=conflict,
         files=files,
     )
-
 
 @app.get("/browse")
 def browse():
@@ -348,7 +294,6 @@ def browse():
         conflict=conflict,
     )
 
-
 @app.post("/renamefolder")
 def renamefolder():
     path = norm_rel(request.form.get("path", ""))
@@ -360,7 +305,6 @@ def renamefolder():
     if not new_name or "/" in new_name or new_name in (".", ".."):
         abort(400, "Invalid folder name")
 
-    # Get parent directory and current folder name
     path_full = safe_join(DATA_ROOT, path)
     parent_full = os.path.dirname(path_full)
     old_name = os.path.basename(path_full)
@@ -368,12 +312,10 @@ def renamefolder():
     if not os.path.isdir(path_full):
         abort(400, "Not a directory")
 
-    # Check that new name doesn't already exist
     new_full = os.path.join(parent_full, new_name)
     if os.path.exists(new_full):
         abort(400, "Name already exists")
 
-    # Rename the folder
     try:
         os.rename(path_full, new_full)
         safe_chown(new_full)
@@ -381,10 +323,8 @@ def renamefolder():
     except OSError as e:
         abort(400, f"Cannot rename: {e}")
 
-    # Build new folder path for redirect
     new_folder_rel = rel_from_root(new_full)
     
-    # Preserve browse context in redirect
     kind = request.form.get("kind", "dst")
     back = request.form.get("back", "link")
     src = request.form.get("src", "")
@@ -397,7 +337,6 @@ def renamefolder():
     
     return redirect(url_for("browse", kind=kind, path=new_folder_rel, back=back, src=src, dst=dst, 
                            base=base, selected=selected, mode=mode, conflict=conflict, dest=dest))
-
 
 @app.post("/mkfolder")
 def mkfolder():
@@ -413,11 +352,9 @@ def mkfolder():
     mkdirs_and_chown(new_full)
     log(f"MKDIR: {parent}/{name}")
 
-    # Build the new folder path
     new_path = os.path.join(parent, name) if parent else name
     new_path = norm_rel(new_path)
     
-    # Preserve browse context in redirect
     kind = request.form.get("kind", "dst")
     back = request.form.get("back", "link")
     src = request.form.get("src", "")
@@ -431,7 +368,6 @@ def mkfolder():
     return redirect(url_for("browse", kind=kind, path=new_path, back=back, src=src, dst=dst, 
                            base=base, selected=selected, mode=mode, conflict=conflict, dest=dest))
 
-
 @app.post("/hardlink")
 def do_hardlink():
     src = norm_rel(request.form.get("src", ""))
@@ -440,17 +376,13 @@ def do_hardlink():
     conflict = request.form.get("conflict", "suffix")
     selected = request.form.getlist("selected")
 
-    # UI uses name="clean" value="1"
     clean_names = (request.form.get("clean") == "1")
 
-    # Build rename map from UI fields:
-    # rename_key_<i> -> original rel path
-    # rename_<i>     -> desired name (optional)
     rename_map = {}
     for k, v in request.form.items():
         if not k.startswith("rename_key_"):
             continue
-        idx = k[11:]  # everything after "rename_key_" prefix
+        idx = k[11:]
         orig = (v or "").replace("\\", "/").lstrip("/")
         new_name = (request.form.get(f"rename_{idx}", "") or "").strip()
         if orig:
@@ -476,37 +408,31 @@ def do_hardlink():
             if not os.path.isfile(src_pool):
                 raise FileNotFoundError("Not a file")
 
-            # ----- Rename logic -----
             original_base = os.path.basename(rel_under)
             original_root, original_ext = os.path.splitext(original_base)
 
             requested = (rename_map.get(rel_under, "") or "").strip()
 
             if requested:
-                # Sanitize, but allow user to omit extension
                 requested = safe_filename(requested)
 
                 req_root, req_ext = os.path.splitext(requested)
                 if req_ext:
-                    desired = requested  # user supplied extension
+                    desired = requested
                 else:
-                    desired = requested + original_ext  # preserve original extension
+                    desired = requested + original_ext
             else:
                 desired = safe_filename(original_base)
 
-            # Optional "clean filenames" pass (you said: “just that, no brackets”)
-            # Apply to the stem only, then re-attach ext to avoid mangling it.
             if clean_names:
                 stem, ext = os.path.splitext(desired)
                 desired = safe_filename(clean_filename(stem) + ext)
 
-            # Build pool destination path
             if mode == "preserve":
                 dest_pool = os.path.join(dst_dir_pool, os.path.dirname(rel_under), desired)
             else:
                 dest_pool = os.path.join(dst_dir_pool, desired)
 
-            # Resolve real paths on same branch (mergerfs mode)
             if mergerfs_enabled():
                 try:
                     basep = mergerfs_basepath(src_pool)
@@ -520,7 +446,6 @@ def do_hardlink():
                 src_real = src_pool
                 dest_real = os.path.realpath(dest_pool)
 
-            # Conflict handling
             final_dest = dest_real
             if os.path.exists(final_dest):
                 if conflict == "skip":
@@ -558,7 +483,6 @@ def do_hardlink():
         results=results,
         errors=errors,
     )
-
 
 if __name__ == "__main__":
     LOG_DIR.mkdir(parents=True, exist_ok=True)
