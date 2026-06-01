@@ -121,7 +121,7 @@ Changes to config require a container restart.
 
 No additional configuration needed. Example nginx config:
 
-​```nginx
+​```
 location / {
     include /config/nginx/proxy.conf;
     include /config/nginx/resolver.conf;
@@ -136,7 +136,7 @@ location / {
 
 Make sure to set the BASE_URL in the container, then
 
-​```nginx
+​```
 location /hardlink-web {
     return 301 $scheme://$host/hardlink-web/;
 }
