@@ -6,7 +6,7 @@ hardlink-web
 
 <div align="center">
   
-  [![GitHub Release](https://img.shields.io/github/v/release/mikenobbs/hardlonk-web?include_prereleases&display_name=release&style=flat)](https://github.com/mikenobbs/hardlink-web/releases)
+  [![GitHub Release](https://img.shields.io/github/v/release/mikenobbs/hardlink-web?include_prereleases&display_name=release&style=flat)](https://github.com/mikenobbs/hardlink-web/releases)
   [![GitHub Repo stars](https://img.shields.io/github/stars/mikenobbs/hardlink-web?style=flat)](https://github.com/mikenobbs/hardlink-web/stargazers)
   [![GitHub watchers](https://img.shields.io/github/watchers/mikenobbs/hardlink-web)](https://github.com/mikenobbs/hardlink-web/watchers)
     
@@ -53,9 +53,9 @@ docker pull mikenobbs/hardlink-web
 docker run -d \
   --name hardlink-web \
   -e BASE_URL=/hardlink-web \ #optional
+  -v /path/to/config:/config \
   -v /path/to/your/media:/data \
   -v /path/to/raw/disks:/path/to/raw/disks \
-  -v /path/to/config:/config \
   -p 8088:8088 \
   mikenobbs/hardlink-web
 ```
@@ -82,9 +82,9 @@ services:
     environment:
       - BASE_URL=/hardlink-web #optional
     volumes:
+      - /path/to/config:/config
       - /path/to/your/media:/data
       - /path/to/raw/disks:/path/to/raw/disks
-      - /path/to/config:/config
     ports:
       - 8088:8088
     restart: unless-stopped
