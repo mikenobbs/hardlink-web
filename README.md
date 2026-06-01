@@ -52,10 +52,11 @@ docker pull mikenobbs/hardlink-web
 ```bash
 docker run -d \
   --name hardlink-web \
-  -p 8088:8088 \
+  -e BASE_URL=/hardlink-web \ #optional
   -v /path/to/your/media:/data \
   -v /path/to/raw/disks:/path/to/raw/disks \
   -v /path/to/config:/config \
+  -p 8088:8088 \
   mikenobbs/hardlink-web
 ```
 
@@ -78,12 +79,14 @@ services:
   hardlink-web:
     image: mikenobbs/hardlink-web
     container_name: hardlink-web
-    ports:
-      - "8088:8088"
+    environment:
+      - BASE_URL=/hardlink-web #optional
     volumes:
       - /path/to/your/media:/data
       - /path/to/raw/disks:/path/to/raw/disks
       - /path/to/config:/config
+    ports:
+      - 8088:8088
     restart: unless-stopped
 ```
 
@@ -108,6 +111,48 @@ ownership:
 ```
 
 Changes to config require a container restart.
+
+
+-----
+
+## Reverse Proxy
+
+### Subdomain
+
+No additional configuration needed. Example nginx config:
+
+​```nginx
+location / {
+    include /config/nginx/proxy.conf;
+    include /config/nginx/resolver.conf;
+    set $upstream_app hardlink-web;
+    set $upstream_port 8088;
+    set $upstream_proto http;
+    proxy_pass $upstream\_proto://$upstream_app:$upstream_port;
+}
+​```
+
+### Subfolder
+
+Make sure to set the BASE_URL in the container, then
+
+​```nginx
+location /hardlink-web {
+    return 301 $scheme://$host/hardlink-web/;
+}
+
+location ^~ /hardlink-web/ {
+    include /config/nginx/proxy.conf;
+    include /config/nginx/resolver.conf;
+    set $upstream_app hardlink-web;
+    set $upstream_port 8088;
+    set $upstream_proto http;
+    proxy_pass $upstream\_proto://$upstream_app:$upstream_port;
+}
+​```
+
+These examples use SWAG-style nginx config but the `proxy_pass` lines translate to any nginx setup.
+
 
 -----
 
