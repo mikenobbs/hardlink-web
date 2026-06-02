@@ -491,11 +491,3 @@ def do_hardlink():
        results=results,
        errors=errors,
    )
-
-
-if __name__ == "__main__":
-   LOG_DIR.mkdir(parents=True, exist_ok=True)
-   safe_chown(str(LOG_DIR))
-   cleanup_old_logs()
-   log("Starting hardlink-web on 0.0.0.0:8088")
-   app.run(host="0.0.0.0", port=8088, debug=False)
