@@ -307,6 +307,22 @@ def browse():
     )
 
 
+INVALID_CHARS = set('\\:*?"<>|')
+
+def validate_folder_name(name):
+    if not name:
+        return "Folder name cannot be empty"
+    if name != name.strip():
+        return "Folder name cannot start or end with spaces"
+    if set(name) & INVALID_CHARS:
+        return 'Folder name contains invalid characters: \\ : * ? " < > |'
+    if len(name) > 255:
+        return "Folder name cannot exceed 255 characters"
+    if "/" in name or name in (".", ".."):
+        return "Invalid folder name"
+    return None
+
+
 @app.post("/renamefolder")
 def renamefolder():
     path = norm_rel(request.form.get("path", ""))
@@ -342,8 +358,10 @@ def renamefolder():
 
     if not path:
         return render_with_error("Cannot rename root")
-    if not new_name or "/" in new_name or new_name in (".", ".."):
-        return render_with_error("Invalid folder name")
+
+    error = validate_folder_name(new_name)
+    if error:
+        return render_with_error(error)
 
     path_full = safe_join(DATA_ROOT, path)
     parent_full = os.path.dirname(path_full)
@@ -372,17 +390,6 @@ def mkfolder():
     parent = norm_rel(request.form.get("parent", ""))
     name = (request.form.get("name", "") or "").strip()
 
-    if not name or "/" in name or name in (".", ".."):
-        abort(400, "Invalid folder name")
-
-    parent_full = safe_join(DATA_ROOT, parent)
-    new_full = os.path.join(parent_full, name)
-
-    mkdirs_and_chown(new_full)
-    log(f"MKDIR: {parent}/{name}")
-
-    new_path = os.path.join(parent, name) if parent else name
-    new_path = norm_rel(new_path)
     kind = request.form.get("kind", "dst")
     back = request.form.get("back", "link")
     src = request.form.get("src", "")
@@ -393,6 +400,42 @@ def mkfolder():
     conflict = request.form.get("conflict", "suffix")
     dest = request.form.get("dest", "")
 
+    def render_with_error(error):
+        dirs = list_dirs(parent)
+        return render_template(
+            "browse.html",
+            title="Browse",
+            browse_root=DATA_ROOT,
+            kind=kind,
+            path=parent,
+            dirs=dirs,
+            crumbs=[],
+            back=back,
+            src=src,
+            dst=dst,
+            mode=mode,
+            conflict=conflict,
+            create_error=error,
+        )
+
+    error = validate_folder_name(name)
+    if error:
+        return render_with_error(error)
+
+    parent_full = safe_join(DATA_ROOT, parent)
+    new_full = os.path.join(parent_full, name)
+
+    if os.path.exists(new_full):
+        return render_with_error("A folder with that name already exists")
+
+    try:
+        mkdirs_and_chown(new_full)
+        log(f"MKDIR: {parent}/{name}")
+    except OSError as e:
+        return render_with_error(f"Cannot create folder: {e}")
+
+    new_path = os.path.join(parent, name) if parent else name
+    new_path = norm_rel(new_path)
     return redirect(url_for("browse", kind=kind, path=new_path, back=back, src=src, dst=dst,
                             base=base, selected=selected, mode=mode, conflict=conflict, dest=dest))
 
