@@ -9,7 +9,7 @@ from typing import List, Tuple
 
 import yaml
 from flask import (
-   Flask, render_template, request, redirect, url_for, abort, Response, flash
+    Flask, render_template, request, redirect, url_for, abort, Response, flash, session
 )
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 from werkzeug.wrappers import Response as WerkzeugResponse
@@ -17,19 +17,19 @@ from werkzeug.wrappers import Response as WerkzeugResponse
 app = Flask(__name__)
 
 def _load_secret_key() -> str:
-   with open("/config/.secret_key") as f:
-       return f.read().strip()
+    with open("/config/.secret_key") as f:
+        return f.read().strip()
 
 app.secret_key = _load_secret_key()
 
 BASE_URL = os.environ.get("BASE_URL", "").rstrip("/")
 if BASE_URL:
-   app.wsgi_app = DispatcherMiddleware(
-       WerkzeugResponse("Not Found", status=404),
-       {BASE_URL: app.wsgi_app}
-   )
-   app.config["APPLICATION_ROOT"] = BASE_URL
-   app.config["PREFERRED_URL_SCHEME"] = "https"
+    app.wsgi_app = DispatcherMiddleware(
+        WerkzeugResponse("Not Found", status=404),
+        {BASE_URL: app.wsgi_app}
+    )
+    app.config["APPLICATION_ROOT"] = BASE_URL
+    app.config["PREFERRED_URL_SCHEME"] = "https"
 
 DATA_ROOT = "/data"
 CONFIG_PATH = "/config/config.yml"
@@ -40,13 +40,13 @@ LOG_RETENTION_DAYS = 7
 
 
 def load_config() -> dict:
-   try:
-       if os.path.isfile(CONFIG_PATH):
-           with open(CONFIG_PATH, "r", encoding="utf-8") as f:
-               return yaml.safe_load(f) or {}
-   except Exception:
-       pass
-   return {}
+    try:
+        if os.path.isfile(CONFIG_PATH):
+            with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+                return yaml.safe_load(f) or {}
+    except Exception:
+        pass
+    return {}
 
 
 CONFIG = load_config()
@@ -55,439 +55,472 @@ OWN_GID = int(CONFIG.get("ownership", {}).get("gid"))
 
 
 def mergerfs_enabled() -> bool:
-   return bool(CONFIG.get("mergerfs", {}).get("enabled", True))
+    return bool(CONFIG.get("mergerfs", {}).get("enabled", True))
 
 
 def auth_enabled() -> bool:
-   return bool(CONFIG.get("auth", {}).get("enabled"))
+    return bool(CONFIG.get("auth", {}).get("enabled"))
 
 
 def check_auth(auth) -> bool:
-   a = CONFIG.get("auth", {})
-   return auth and auth.username == a.get("username") and auth.password == a.get("password")
+    a = CONFIG.get("auth", {})
+    return auth and auth.username == a.get("username") and auth.password == a.get("password")
 
 
 @app.before_request
 def require_basic_auth():
-   if not auth_enabled():
-       return
-   auth = request.authorization
-   if not check_auth(auth):
-       return Response(
-           "Authentication required",
-           401,
-           {"WWW-Authenticate": 'Basic realm="Hardlink Web"'},
-       )
+    if not auth_enabled():
+        return
+    auth = request.authorization
+    if not check_auth(auth):
+        return Response(
+            "Authentication required",
+            401,
+            {"WWW-Authenticate": 'Basic realm="Hardlink Web"'},
+        )
 
 
 def safe_chown(path: str) -> None:
-   try:
-       if os.path.islink(path):
-           return
-       os.chown(path, OWN_UID, OWN_GID)
-   except Exception:
-       pass
+    try:
+        if os.path.islink(path):
+            return
+        os.chown(path, OWN_UID, OWN_GID)
+    except Exception:
+        pass
 
 
 def mkdirs_and_chown(dir_path: str) -> None:
-   dir_path = os.path.realpath(dir_path)
-   parts = dir_path.split(os.sep)
-   cur = os.sep
-   for part in parts[1:]:
-       if not part:
-           continue
-       cur = os.path.join(cur, part)
-       if not os.path.exists(cur):
-           os.mkdir(cur)
-           safe_chown(cur)
+    dir_path = os.path.realpath(dir_path)
+    parts = dir_path.split(os.sep)
+    cur = os.sep
+    for part in parts[1:]:
+        if not part:
+            continue
+        cur = os.path.join(cur, part)
+        if not os.path.exists(cur):
+            os.mkdir(cur)
+            safe_chown(cur)
 
 
 def cleanup_old_logs() -> None:
-   cutoff = datetime.datetime.now() - datetime.timedelta(days=LOG_RETENTION_DAYS)
-   for p in LOG_DIR.glob(f"{LOG_PREFIX}-*.log"):
-       try:
-           date_part = p.stem.replace(f"{LOG_PREFIX}-", "")
-           d = datetime.datetime.strptime(date_part, "%Y-%m-%d")
-           if d < cutoff:
-               p.unlink(missing_ok=True)
-       except Exception:
-           pass
+    cutoff = datetime.datetime.now() - datetime.timedelta(days=LOG_RETENTION_DAYS)
+    for p in LOG_DIR.glob(f"{LOG_PREFIX}-*.log"):
+        try:
+            date_part = p.stem.replace(f"{LOG_PREFIX}-", "")
+            d = datetime.datetime.strptime(date_part, "%Y-%m-%d")
+            if d < cutoff:
+                p.unlink(missing_ok=True)
+        except Exception:
+            pass
 
 
 def log(msg: str) -> None:
-   LOG_DIR.mkdir(parents=True, exist_ok=True)
-   safe_chown(str(LOG_DIR))
-   now = datetime.datetime.now()
-   date_str = now.strftime("%Y-%m-%d")
-   logfile = LOG_DIR / f"{LOG_PREFIX}-{date_str}.log"
-   line = f"[{now.strftime('%H:%M:%S')}] {msg}"
-   with logfile.open("a", encoding="utf-8") as f:
-       f.write(line + "\n")
-   safe_chown(str(logfile))
-   cleanup_old_logs()
-   print(line, flush=True)
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+    safe_chown(str(LOG_DIR))
+    now = datetime.datetime.now()
+    date_str = now.strftime("%Y-%m-%d")
+    logfile = LOG_DIR / f"{LOG_PREFIX}-{date_str}.log"
+    line = f"[{now.strftime('%H:%M:%S')}] {msg}"
+    with logfile.open("a", encoding="utf-8") as f:
+        f.write(line + "\n")
+    safe_chown(str(logfile))
+    cleanup_old_logs()
+    print(line, flush=True)
 
 
 def norm_rel(p: str) -> str:
-   return (p or "").strip().replace("\\", "/").lstrip("/").strip("/")
+    return (p or "").strip().replace("\\", "/").lstrip("/").strip("/")
 
 
 def safe_join(root: str, rel: str) -> str:
-   rel = norm_rel(rel)
-   root_real = os.path.realpath(root)
-   full = os.path.realpath(os.path.join(root_real, rel))
-   if not (full == root_real or full.startswith(root_real + os.sep)):
-       raise ValueError("Path escape blocked")
-   return full
+    rel = norm_rel(rel)
+    root_real = os.path.realpath(root)
+    full = os.path.realpath(os.path.join(root_real, rel))
+    if not (full == root_real or full.startswith(root_real + os.sep)):
+        raise ValueError("Path escape blocked")
+    return full
 
 
 def is_under(path: str, root: str) -> bool:
-   rr = os.path.realpath(root)
-   rp = os.path.realpath(path)
-   return rp == rr or rp.startswith(rr + os.sep)
+    rr = os.path.realpath(root)
+    rp = os.path.realpath(path)
+    return rp == rr or rp.startswith(rr + os.sep)
 
 
 def rel_from_root(full: str) -> str:
-   root_real = os.path.realpath(DATA_ROOT)
-   full_real = os.path.realpath(full)
-   if full_real == root_real:
-       return ""
-   if not full_real.startswith(root_real + os.sep):
-       raise ValueError("Not under /data")
-   return full_real[len(root_real) + 1:]
+    root_real = os.path.realpath(DATA_ROOT)
+    full_real = os.path.realpath(full)
+    if full_real == root_real:
+        return ""
+    if not full_real.startswith(root_real + os.sep):
+        raise ValueError("Not under /data")
+    return full_real[len(root_real) + 1:]
 
 
 def unique_path(dest_path: str) -> str:
-   if not os.path.exists(dest_path):
-       return dest_path
-   base, ext = os.path.splitext(dest_path)
-   i = 2
-   while True:
-       cand = f"{base} ({i}){ext}"
-       if not os.path.exists(cand):
-           return cand
-       i += 1
+    if not os.path.exists(dest_path):
+        return dest_path
+    base, ext = os.path.splitext(dest_path)
+    i = 2
+    while True:
+        cand = f"{base} ({i}){ext}"
+        if not os.path.exists(cand):
+            return cand
+        i += 1
 
 
 def safe_filename(name: str) -> str:
-   name = (name or "").strip().replace("\\", "/")
-   name = name.split("/")[-1]
-   name = name.strip()
-   if not name or name in (".", ".."):
-       raise ValueError("Invalid filename")
-   return name
+    name = (name or "").strip().replace("\\", "/")
+    name = name.split("/")[-1]
+    name = name.strip()
+    if not name or name in (".", ".."):
+        raise ValueError("Invalid filename")
+    return name
 
 
 def clean_filename(name: str) -> str:
-   base, ext = os.path.splitext(name)
-   base = base.replace(".", " ").replace("_", " ")
-   base = re.sub(r"\s+", " ", base).strip()
-   return base + ext
+    base, ext = os.path.splitext(name)
+    base = base.replace(".", " ").replace("_", " ")
+    base = re.sub(r"\s+", " ", base).strip()
+    return base + ext
 
 
 @dataclass
 class FileEntry:
-   name: str
-   rel_under_dir: str
-   size: int
+    name: str
+    rel_under_dir: str
+    size: int
 
 
 def list_dirs(rel_dir: str) -> List[Tuple[str, str]]:
-   rel_dir = norm_rel(rel_dir)
-   full = safe_join(DATA_ROOT, rel_dir)
-   out: List[Tuple[str, str]] = []
-   try:
-       for name in sorted(os.listdir(full), key=str.lower):
-           p = os.path.join(full, name)
-           if os.path.isdir(p):
-               out.append((name, norm_rel(os.path.join(rel_dir, name))))
-   except Exception:
-       pass
-   return out
+    rel_dir = norm_rel(rel_dir)
+    full = safe_join(DATA_ROOT, rel_dir)
+    out: List[Tuple[str, str]] = []
+    try:
+        for name in sorted(os.listdir(full), key=str.lower):
+            p = os.path.join(full, name)
+            if os.path.isdir(p):
+                out.append((name, norm_rel(os.path.join(rel_dir, name))))
+    except Exception:
+        pass
+    return out
 
 
 def list_files(rel_dir: str) -> List[FileEntry]:
-   rel_dir = norm_rel(rel_dir)
-   full = safe_join(DATA_ROOT, rel_dir)
-   out: List[FileEntry] = []
-   try:
-       for name in sorted(os.listdir(full), key=str.lower):
-           p = os.path.join(full, name)
-           if os.path.isfile(p):
-               out.append(FileEntry(name=name, rel_under_dir=name, size=os.stat(p).st_size))
-   except Exception:
-       pass
-   return out
+    rel_dir = norm_rel(rel_dir)
+    full = safe_join(DATA_ROOT, rel_dir)
+    out: List[FileEntry] = []
+    try:
+        for name in sorted(os.listdir(full), key=str.lower):
+            p = os.path.join(full, name)
+            if os.path.isfile(p):
+                out.append(FileEntry(name=name, rel_under_dir=name, size=os.stat(p).st_size))
+    except Exception:
+        pass
+    return out
 
 
 def get_xattr_str(path: str, attr: str) -> str:
-   try:
-       val = os.getxattr(path, attr)
-       return val.decode("utf-8", errors="replace").strip("\x00")
-   except OSError as e:
-       raise OSError(f"Cannot read xattr '{attr}' on '{path}': {e}") from e
+    try:
+        val = os.getxattr(path, attr)
+        return val.decode("utf-8", errors="replace").strip("\x00")
+    except OSError as e:
+        raise OSError(f"Cannot read xattr '{attr}' on '{path}': {e}") from e
 
 
 def mergerfs_basepath(pool_path: str) -> str:
-   return get_xattr_str(pool_path, "user.mergerfs.basepath")
+    return get_xattr_str(pool_path, "user.mergerfs.basepath")
 
 
 def mergerfs_fullpath(pool_path: str) -> str:
-   return get_xattr_str(pool_path, "user.mergerfs.fullpath")
+    return get_xattr_str(pool_path, "user.mergerfs.fullpath")
 
 
 def pool_to_same_branch_dest(basepath: str, dest_pool_path: str) -> str:
-   if not is_under(dest_pool_path, DATA_ROOT):
-       raise ValueError("Destination not under /data")
-   base = os.path.realpath(basepath)
-   if not os.path.isabs(base):
-       raise ValueError(f"Source basepath '{basepath}' is not absolute")
-   if not os.path.isdir(base):
-       raise ValueError(
-           f"Source basepath '{basepath}' is not visible in container. "
-           f"Mount your raw branches so '{basepath}' exists in-container."
-       )
-   dest_rel = rel_from_root(dest_pool_path)
-   return os.path.join(base, dest_rel)
+    if not is_under(dest_pool_path, DATA_ROOT):
+        raise ValueError("Destination not under /data")
+    base = os.path.realpath(basepath)
+    if not os.path.isabs(base):
+        raise ValueError(f"Source basepath '{basepath}' is not absolute")
+    if not os.path.isdir(base):
+        raise ValueError(
+            f"Source basepath '{basepath}' is not visible in container. "
+            f"Mount your raw branches so '{basepath}' exists in-container."
+        )
+    dest_rel = rel_from_root(dest_pool_path)
+    return os.path.join(base, dest_rel)
 
 
 @app.get("/")
 def home():
-   return redirect(url_for("link_page"))
+    return redirect(url_for("link_page"))
 
 
 @app.get("/link")
 def link_page():
-   src = norm_rel(request.args.get("src", ""))
-   dst = norm_rel(request.args.get("dst", ""))
-   mode = request.args.get("mode", "flatten")
-   conflict = request.args.get("conflict", "suffix")
-   files = list_files(src) if src else []
-   return render_template(
-       "link.html",
-       title="Hardlink",
-       browse_root=DATA_ROOT,
-       src=src,
-       dst=dst,
-       mode=mode,
-       conflict=conflict,
-       files=files,
-   )
+    src = norm_rel(request.args.get("src", ""))
+    dst = norm_rel(request.args.get("dst", ""))
+    mode = request.args.get("mode", "flatten")
+    conflict = request.args.get("conflict", "suffix")
+    files = list_files(src) if src else []
+    return render_template(
+        "link.html",
+        title="Hardlink",
+        browse_root=DATA_ROOT,
+        src=src,
+        dst=dst,
+        mode=mode,
+        conflict=conflict,
+        files=files,
+    )
 
 
 @app.get("/browse")
 def browse():
-   kind = request.args.get("kind", "src")
-   path = norm_rel(request.args.get("path", ""))
-   back = request.args.get("back", "link")
-   src = norm_rel(request.args.get("src", ""))
-   dst = norm_rel(request.args.get("dst", ""))
-   mode = request.args.get("mode", "flatten")
-   conflict = request.args.get("conflict", "suffix")
-   dirs = list_dirs(path)
-   parts = [p for p in path.split("/") if p]
-   crumbs = [("Root", "")]
-   acc = ""
-   for p in parts:
-       acc = f"{acc}/{p}" if acc else p
-       crumbs.append((p, acc))
-   return render_template(
-       "browse.html",
-       title="Browse",
-       browse_root=DATA_ROOT,
-       kind=kind,
-       path=path,
-       dirs=dirs,
-       crumbs=crumbs,
-       back=back,
-       src=src,
-       dst=dst,
-       mode=mode,
-       conflict=conflict,
-   )
+    kind = request.args.get("kind", "src")
+    path = norm_rel(request.args.get("path", ""))
+    back = request.args.get("back", "link")
+    src = norm_rel(request.args.get("src", ""))
+    dst = norm_rel(request.args.get("dst", ""))
+    mode = request.args.get("mode", "flatten")
+    conflict = request.args.get("conflict", "suffix")
+    dirs = list_dirs(path)
+    parts = [p for p in path.split("/") if p]
+    crumbs = [("Root", "")]
+    acc = ""
+    for p in parts:
+        acc = f"{acc}/{p}" if acc else p
+        crumbs.append((p, acc))
+    return render_template(
+        "browse.html",
+        title="Browse",
+        browse_root=DATA_ROOT,
+        kind=kind,
+        path=path,
+        dirs=dirs,
+        crumbs=crumbs,
+        back=back,
+        src=src,
+        dst=dst,
+        mode=mode,
+        conflict=conflict,
+    )
 
 
 @app.post("/renamefolder")
 def renamefolder():
-   path = norm_rel(request.form.get("path", ""))
-   new_name = (request.form.get("new_name", "") or "").strip()
+    path = norm_rel(request.form.get("path", ""))
+    new_name = (request.form.get("new_name", "") or "").strip()
 
-   if not path:
-       abort(400, "Cannot rename root")
-   if not new_name or "/" in new_name or new_name in (".", ".."):
-       abort(400, "Invalid folder name")
+    kind = request.form.get("kind", "dst")
+    back = request.form.get("back", "link")
+    src = request.form.get("src", "")
+    dst = request.form.get("dst", "")
+    base = request.form.get("base", "")
+    selected = request.form.get("selected", "")
+    mode = request.form.get("mode", "flatten")
+    conflict = request.form.get("conflict", "suffix")
+    dest = request.form.get("dest", "")
 
-   path_full = safe_join(DATA_ROOT, path)
-   parent_full = os.path.dirname(path_full)
+    def render_with_error(error):
+        dirs = list_dirs(path)
+        return render_template(
+            "browse.html",
+            title="Browse",
+            browse_root=DATA_ROOT,
+            kind=kind,
+            path=path,
+            dirs=dirs,
+            crumbs=[],
+            back=back,
+            src=src,
+            dst=dst,
+            mode=mode,
+            conflict=conflict,
+            rename_error=error,
+        )
 
-   if not os.path.isdir(path_full):
-       abort(400, "Not a directory")
+    if not path:
+        return render_with_error("Cannot rename root")
+    if not new_name or "/" in new_name or new_name in (".", ".."):
+        return render_with_error("Invalid folder name")
 
-   new_full = os.path.join(parent_full, new_name)
-   if os.path.exists(new_full):
-       abort(400, "Name already exists")
+    path_full = safe_join(DATA_ROOT, path)
+    parent_full = os.path.dirname(path_full)
 
-   try:
-       os.rename(path_full, new_full)
-       safe_chown(new_full)
-       log(f"RENAME: '{path}' → '{new_name}'")
-   except OSError as e:
-       abort(400, f"Cannot rename: {e}")
+    if not os.path.isdir(path_full):
+        return render_with_error("Not a directory")
 
-   new_folder_rel = rel_from_root(new_full)
-   kind = request.form.get("kind", "dst")
-   back = request.form.get("back", "link")
-   src = request.form.get("src", "")
-   dst = request.form.get("dst", "")
-   base = request.form.get("base", "")
-   selected = request.form.get("selected", "")
-   mode = request.form.get("mode", "flatten")
-   conflict = request.form.get("conflict", "suffix")
-   dest = request.form.get("dest", "")
+    new_full = os.path.join(parent_full, new_name)
+    if os.path.exists(new_full):
+        return render_with_error("A folder with that name already exists")
 
-   return redirect(url_for("browse", kind=kind, path=new_folder_rel, back=back, src=src, dst=dst,
-                           base=base, selected=selected, mode=mode, conflict=conflict, dest=dest))
+    try:
+        os.rename(path_full, new_full)
+        safe_chown(new_full)
+        log(f"RENAME: '{path}' → '{new_name}'")
+    except OSError as e:
+        return render_with_error(f"Cannot rename: {e}")
+
+    new_folder_rel = rel_from_root(new_full)
+    return redirect(url_for("browse", kind=kind, path=new_folder_rel, back=back, src=src, dst=dst,
+                            base=base, selected=selected, mode=mode, conflict=conflict, dest=dest))
 
 
 @app.post("/mkfolder")
 def mkfolder():
-   parent = norm_rel(request.form.get("parent", ""))
-   name = (request.form.get("name", "") or "").strip()
+    parent = norm_rel(request.form.get("parent", ""))
+    name = (request.form.get("name", "") or "").strip()
 
-   if not name or "/" in name or name in (".", ".."):
-       abort(400, "Invalid folder name")
+    if not name or "/" in name or name in (".", ".."):
+        abort(400, "Invalid folder name")
 
-   parent_full = safe_join(DATA_ROOT, parent)
-   new_full = os.path.join(parent_full, name)
+    parent_full = safe_join(DATA_ROOT, parent)
+    new_full = os.path.join(parent_full, name)
 
-   mkdirs_and_chown(new_full)
-   log(f"MKDIR: {parent}/{name}")
+    mkdirs_and_chown(new_full)
+    log(f"MKDIR: {parent}/{name}")
 
-   new_path = os.path.join(parent, name) if parent else name
-   new_path = norm_rel(new_path)
-   kind = request.form.get("kind", "dst")
-   back = request.form.get("back", "link")
-   src = request.form.get("src", "")
-   dst = request.form.get("dst", "")
-   base = request.form.get("base", "")
-   selected = request.form.get("selected", "")
-   mode = request.form.get("mode", "flatten")
-   conflict = request.form.get("conflict", "suffix")
-   dest = request.form.get("dest", "")
+    new_path = os.path.join(parent, name) if parent else name
+    new_path = norm_rel(new_path)
+    kind = request.form.get("kind", "dst")
+    back = request.form.get("back", "link")
+    src = request.form.get("src", "")
+    dst = request.form.get("dst", "")
+    base = request.form.get("base", "")
+    selected = request.form.get("selected", "")
+    mode = request.form.get("mode", "flatten")
+    conflict = request.form.get("conflict", "suffix")
+    dest = request.form.get("dest", "")
 
-   return redirect(url_for("browse", kind=kind, path=new_path, back=back, src=src, dst=dst,
-                           base=base, selected=selected, mode=mode, conflict=conflict, dest=dest))
+    return redirect(url_for("browse", kind=kind, path=new_path, back=back, src=src, dst=dst,
+                            base=base, selected=selected, mode=mode, conflict=conflict, dest=dest))
 
 
 @app.post("/hardlink")
 def do_hardlink():
-   src = norm_rel(request.form.get("src", ""))
-   dst = norm_rel(request.form.get("dst", ""))
-   mode = request.form.get("mode", "flatten")
-   conflict = request.form.get("conflict", "suffix")
-   selected = request.form.getlist("selected")
-   clean_names = (request.form.get("clean") == "1")
+    src = norm_rel(request.form.get("src", ""))
+    dst = norm_rel(request.form.get("dst", ""))
+    mode = request.form.get("mode", "flatten")
+    conflict = request.form.get("conflict", "suffix")
+    selected = request.form.getlist("selected")
+    clean_names = (request.form.get("clean") == "1")
 
-   rename_map = {}
-   for k, v in request.form.items():
-       if not k.startswith("rename_key_"):
-           continue
-       idx = k[11:]
-       orig = (v or "").replace("\\", "/").lstrip("/")
-       new_name = (request.form.get(f"rename_{idx}", "") or "").strip()
-       if orig:
-           rename_map[orig] = new_name
+    rename_map = {}
+    for k, v in request.form.items():
+        if not k.startswith("rename_key_"):
+            continue
+        idx = k[11:]
+        orig = (v or "").replace("\\", "/").lstrip("/")
+        new_name = (request.form.get(f"rename_{idx}", "") or "").strip()
+        if orig:
+            rename_map[orig] = new_name
 
-   if not selected:
-       flash("No files selected.")
-       return redirect(url_for("link_page", src=src, dst=dst, mode=mode, conflict=conflict, clean=("1" if clean_names else "")))
+    if not selected:
+        flash("No files selected.")
+        return redirect(url_for("link_page", src=src, dst=dst, mode=mode, conflict=conflict, clean=("1" if clean_names else "")))
 
-   src_dir_pool = safe_join(DATA_ROOT, src)
-   dst_dir_pool = safe_join(DATA_ROOT, dst)
-   os.makedirs(dst_dir_pool, exist_ok=True)
+    src_dir_pool = safe_join(DATA_ROOT, src)
+    dst_dir_pool = safe_join(DATA_ROOT, dst)
+    os.makedirs(dst_dir_pool, exist_ok=True)
 
-   results, errors = [], []
-   log(f"HARDLINK: src='{src}' dst='{dst}' mode='{mode}' conflict='{conflict}' clean={clean_names} count={len(selected)}")
+    results, errors = [], []
+    log(f"HARDLINK: src='{src}' dst='{dst}' mode='{mode}' conflict='{conflict}' clean={clean_names} count={len(selected)}")
 
-   for rel_under in selected:
-       rel_under = (rel_under or "").replace("\\", "/").lstrip("/")
-       try:
-           src_pool = os.path.realpath(os.path.join(src_dir_pool, rel_under))
-           if not is_under(src_pool, src_dir_pool):
-               raise ValueError("Selection escape blocked")
-           if not os.path.isfile(src_pool):
-               raise FileNotFoundError("Not a file")
+    for rel_under in selected:
+        rel_under = (rel_under or "").replace("\\", "/").lstrip("/")
+        try:
+            src_pool = os.path.realpath(os.path.join(src_dir_pool, rel_under))
+            if not is_under(src_pool, src_dir_pool):
+                raise ValueError("Selection escape blocked")
+            if not os.path.isfile(src_pool):
+                raise FileNotFoundError("Not a file")
 
-           original_base = os.path.basename(rel_under)
-           original_root, original_ext = os.path.splitext(original_base)
-           requested = (rename_map.get(rel_under, "") or "").strip()
+            original_base = os.path.basename(rel_under)
+            original_root, original_ext = os.path.splitext(original_base)
+            requested = (rename_map.get(rel_under, "") or "").strip()
 
-           if requested:
-               requested = safe_filename(requested)
-               req_root, req_ext = os.path.splitext(requested)
-               if req_ext:
-                   desired = requested
-               else:
-                   desired = requested + original_ext
-           else:
-               desired = safe_filename(original_base)
+            if requested:
+                requested = safe_filename(requested)
+                req_root, req_ext = os.path.splitext(requested)
+                if req_ext:
+                    desired = requested
+                else:
+                    desired = requested + original_ext
+            else:
+                desired = safe_filename(original_base)
 
-           if clean_names:
-               stem, ext = os.path.splitext(desired)
-               desired = safe_filename(clean_filename(stem) + ext)
+            if clean_names:
+                stem, ext = os.path.splitext(desired)
+                desired = safe_filename(clean_filename(stem) + ext)
 
-           if mode == "preserve":
-               dest_pool = os.path.join(dst_dir_pool, os.path.dirname(rel_under), desired)
-           else:
-               dest_pool = os.path.join(dst_dir_pool, desired)
+            if mode == "preserve":
+                dest_pool = os.path.join(dst_dir_pool, os.path.dirname(rel_under), desired)
+            else:
+                dest_pool = os.path.join(dst_dir_pool, desired)
 
-           if mergerfs_enabled():
-               try:
-                   basep = mergerfs_basepath(src_pool)
-                   src_real = mergerfs_fullpath(src_pool)
-                   dest_real = pool_to_same_branch_dest(basep, os.path.realpath(dest_pool))
-               except OSError as e:
-                   raise ValueError(
-                       f"Mergerfs xattr error (file not on mergerfs pool?): {e}"
-                   ) from e
-           else:
-               src_real = src_pool
-               dest_real = os.path.realpath(dest_pool)
+            if mergerfs_enabled():
+                try:
+                    basep = mergerfs_basepath(src_pool)
+                    src_real = mergerfs_fullpath(src_pool)
+                    dest_real = pool_to_same_branch_dest(basep, os.path.realpath(dest_pool))
+                except OSError as e:
+                    raise ValueError(
+                        f"Mergerfs xattr error (file not on mergerfs pool?): {e}"
+                    ) from e
+            else:
+                src_real = src_pool
+                dest_real = os.path.realpath(dest_pool)
 
-           final_dest = dest_real
-           if os.path.exists(final_dest):
-               if conflict == "skip":
-                   results.append((rel_under, "skipped (exists)"))
-                   continue
-               if conflict == "overwrite":
-                   if os.path.isdir(final_dest):
-                       shutil.rmtree(final_dest)
-                   else:
-                       os.remove(final_dest)
-               else:
-                   final_dest = unique_path(final_dest)
+            final_dest = dest_real
+            if os.path.exists(final_dest):
+                if conflict == "skip":
+                    results.append((rel_under, "skipped (exists)"))
+                    continue
+                if conflict == "overwrite":
+                    if os.path.isdir(final_dest):
+                        shutil.rmtree(final_dest)
+                    else:
+                        os.remove(final_dest)
+                else:
+                    final_dest = unique_path(final_dest)
 
-           mkdirs_and_chown(os.path.dirname(final_dest))
-           os.link(src_real, final_dest)
-           safe_chown(final_dest)
+            mkdirs_and_chown(os.path.dirname(final_dest))
+            os.link(src_real, final_dest)
+            safe_chown(final_dest)
 
-           results.append((rel_under, f"linked → {final_dest}"))
-           log(f"OK: '{src_real}' -> '{final_dest}'")
+            results.append((rel_under, f"linked → {final_dest}"))
+            log(f"OK: '{src_real}' -> '{final_dest}'")
 
-       except OSError as e:
-           if e.errno == errno.EXDEV:
-               errors.append((rel_under, "EXDEV: different underlying filesystem (branch mismatch)."))
-           else:
-               errors.append((rel_under, f"{type(e).__name__}: {e}"))
-           log(f"ERR: {rel_under}: {repr(e)}")
-       except Exception as e:
-           errors.append((rel_under, f"{type(e).__name__}: {e}"))
-           log(f"ERR: {rel_under}: {repr(e)}")
+        except OSError as e:
+            if e.errno == errno.EXDEV:
+                errors.append((rel_under, "EXDEV: different underlying filesystem (branch mismatch)."))
+            else:
+                errors.append((rel_under, f"{type(e).__name__}: {e}"))
+            log(f"ERR: {rel_under}: {repr(e)}")
+        except Exception as e:
+            errors.append((rel_under, f"{type(e).__name__}: {e}"))
+            log(f"ERR: {rel_under}: {repr(e)}")
 
-   return render_template(
-       "result.html",
-       title="Results",
-       back_url=url_for("link_page", src=src, dst=dst, mode=mode, conflict=conflict, clean=("1" if clean_names else "")),
-       results=results,
-       errors=errors,
-   )
+    session["results"] = results
+    session["errors"] = errors
+    session["back_url"] = url_for("link_page", src=src, dst=dst, mode=mode, conflict=conflict, clean=("1" if clean_names else ""))
+    return redirect(url_for("results_page"))
+
+
+@app.get("/results")
+def results_page():
+    results = session.pop("results", None)
+    errors = session.pop("errors", [])
+    back_url = session.pop("back_url", url_for("link_page"))
+
+    if results is None:
+        return redirect(url_for("link_page"))
+
+    return render_template(
+        "result.html",
+        title="Results",
+        back_url=back_url,
+        results=results,
+        errors=errors,
+    )
