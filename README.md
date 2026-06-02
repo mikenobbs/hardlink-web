@@ -121,7 +121,7 @@ Changes to config require a container restart.
 
 No additional configuration needed. Example nginx config:
 
-​```bash
+```nginx
 location / {
     include /config/nginx/proxy.conf;
     include /config/nginx/resolver.conf;
@@ -130,13 +130,13 @@ location / {
     set $upstream_proto http;
     proxy_pass $upstream\_proto://$upstream_app:$upstream_port;
 }
-​```
+```
 
 ### Subfolder
 
-Make sure to set the BASE_URL in the container, then
+Make sure to set BASE_URL in the container, then
 
-​```bash
+```nginx
 location /hardlink-web {
     return 301 $scheme://$host/hardlink-web/;
 }
@@ -149,7 +149,7 @@ location ^~ /hardlink-web/ {
     set $upstream_proto http;
     proxy_pass $upstream\_proto://$upstream_app:$upstream_port;
 }
-​```
+```
 
 These examples use SWAG-style nginx config but the `proxy_pass` lines translate to any nginx setup.
 
