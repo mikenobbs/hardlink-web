@@ -6,16 +6,16 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-COPY app.py /app/app.py
-COPY templates /app/templates
-COPY static /app/static
-COPY config/config.yml /app/config.yml
-COPY entrypoint.sh /app/entrypoint.sh
+COPY requirements.txt .
+
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY app.py .
+COPY templates ./templates
+COPY static ./static
+COPY config/config.yml ./config.yml
+COPY entrypoint.sh .
 RUN chmod +x /app/entrypoint.sh
-
-RUN pip install --no-cache-dir flask pyyaml
-
-RUN python -c "import secrets; open('/app/.secret_key', 'w').write(secrets.token_hex(32))"
 
 EXPOSE 8088
 
