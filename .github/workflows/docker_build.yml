@@ -40,3 +40,21 @@ jobs:
             ${{ vars.DOCKER_USERNAME }}/${{ vars.DOCKER_REPO }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Notify Discord (Success)
+        uses: sarisia/actions-status-discord@v1
+        if: success()
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK }}
+          title: ${{ vars.DOCKER_REPO }}
+          description: "Version ${{ steps.get_version.outputs.version }} built and pushed successfully"
+          color: 0x57f287
+
+      - name: Notify Discord (Failure)
+        uses: sarisia/actions-status-discord@v1
+        if: failure()
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK }}
+          title: ${{ vars.DOCKER_REPO }}
+          description: "Version ${{ steps.get_version.outputs.version }} failed to build"
+          color: 0xed4245
