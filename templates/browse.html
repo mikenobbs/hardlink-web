@@ -59,6 +59,7 @@
       <input name="new_name" placeholder="New folder name" value="{{ current_name }}" autocomplete="off" required />
       <button class="btn btn-primary" type="submit">Rename</button>
     </div>
+    {% if rename_error %}<p class="error">{{ rename_error }}</p>{% endif %}
   </form>
 </section>
 {% endif %}
