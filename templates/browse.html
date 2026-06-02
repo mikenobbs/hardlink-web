@@ -82,6 +82,7 @@
       <input name="name" placeholder="New folder name" autocomplete="off" required />
       <button class="btn btn-primary" type="submit">Create</button>
     </div>
+    {% if create_error %}<p class="error">{{ create_error }}</p>{% endif %}
   </form>
 </section>
 {% endif %}
