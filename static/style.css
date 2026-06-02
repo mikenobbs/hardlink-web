@@ -141,6 +141,12 @@ input[readonly] {
   flex-shrink: 0;
 }
 
+.error {
+  color: var(--danger);
+  font-size: 13px;
+  margin: 8px 0 0 0;
+}
+
 
 /* Buttons */
 
