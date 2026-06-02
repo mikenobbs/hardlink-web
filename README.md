@@ -128,7 +128,7 @@ location / {
     set $upstream_app hardlink-web;
     set $upstream_port 8088;
     set $upstream_proto http;
-    proxy_pass $upstream\_proto://$upstream_app:$upstream_port;
+    proxy_pass $upstream_proto://$upstream_app:$upstream_port;
 }
 ```
 
@@ -147,7 +147,7 @@ location ^~ /hardlink-web/ {
     set $upstream_app hardlink-web;
     set $upstream_port 8088;
     set $upstream_proto http;
-    proxy_pass $upstream\_proto://$upstream_app:$upstream_port;
+    proxy_pass $upstream_proto://$upstream_app:$upstream_port;
 }
 ```
 
