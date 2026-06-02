@@ -17,7 +17,7 @@ from werkzeug.wrappers import Response as WerkzeugResponse
 app = Flask(__name__)
 
 def _load_secret_key() -> str:
-   with open("/app/.secret_key") as f:
+   with open("/config/.secret_key") as f:
        return f.read().strip()
 
 app.secret_key = _load_secret_key()
