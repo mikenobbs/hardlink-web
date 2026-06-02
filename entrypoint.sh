@@ -8,4 +8,4 @@ if [ ! -f /config/config.yml ]; then
     cp /app/config.yml /config/config.yml
 fi
 
-exec gunicorn --bind 0.0.0.0:8088 --workers 2 app:app
+exec gunicorn --bind 0.0.0.0:8088 --workers 2 --chdir /app app:app
