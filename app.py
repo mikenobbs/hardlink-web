@@ -1,4 +1,5 @@
 import os
+import sys
 import shutil
 import errno
 import datetime
@@ -14,11 +15,62 @@ from flask import (
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 from werkzeug.wrappers import Response as WerkzeugResponse
 
+
+def startup_check():
+    errors = []
+
+    if not os.path.isdir("/config"):
+        errors.append("FATAL: /config is not mounted or does not exist")
+    elif not os.access("/config", os.W_OK):
+        errors.append("FATAL: /config is not writable")
+
+    if not os.path.isdir("/data"):
+        errors.append("FATAL: /data is not mounted or does not exist")
+    elif not os.access("/data", os.R_OK):
+        errors.append("FATAL: /data is not readable")
+
+    if not os.path.isfile("/config/.secret_key"):
+        errors.append("FATAL: /config/.secret_key is missing — was the entrypoint run correctly?")
+    elif not os.access("/config/.secret_key", os.R_OK):
+        errors.append("FATAL: /config/.secret_key is not readable")
+
+    config_path = "/config/config.yml"
+    if not os.path.isfile(config_path):
+        errors.append("FATAL: /config/config.yml is missing — was the entrypoint run correctly?")
+    else:
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                cfg = yaml.safe_load(f) or {}
+            uid = cfg.get("ownership", {}).get("uid")
+            gid = cfg.get("ownership", {}).get("gid")
+            if uid is None:
+                errors.append("FATAL: ownership.uid is missing from config.yml")
+            elif not str(uid).isdigit():
+                errors.append(f"FATAL: ownership.uid '{uid}' is not a valid integer")
+            if gid is None:
+                errors.append("FATAL: ownership.gid is missing from config.yml")
+            elif not str(gid).isdigit():
+                errors.append(f"FATAL: ownership.gid '{gid}' is not a valid integer")
+        except yaml.YAMLError as e:
+            errors.append(f"FATAL: config.yml is malformed: {e}")
+        except Exception as e:
+            errors.append(f"FATAL: could not read config.yml: {e}")
+
+    if errors:
+        for msg in errors:
+            print(f"[hardlink-web] {msg}", flush=True)
+        sys.exit(1)
+
+
+startup_check()
+
 app = Flask(__name__)
+
 
 def _load_secret_key() -> str:
     with open("/config/.secret_key") as f:
         return f.read().strip()
+
 
 app.secret_key = _load_secret_key()
 
@@ -244,8 +296,8 @@ def pool_to_same_branch_dest(basepath: str, dest_pool_path: str) -> str:
         raise ValueError(f"Source basepath '{basepath}' is not absolute")
     if not os.path.isdir(base):
         raise ValueError(
-            f"Source basepath '{basepath}' is not visible in container. "
-            f"Mount your raw branches so '{basepath}' exists in-container."
+            f"Source basepath '{basepath}' is not visible in container — "
+            f"make sure your raw disks are mounted at '{basepath}'"
         )
     dest_rel = rel_from_root(dest_pool_path)
     return os.path.join(base, dest_rel)
@@ -308,6 +360,7 @@ def browse():
 
 
 INVALID_CHARS = set('\\:*?"<>|')
+
 
 def validate_folder_name(name):
     if not name:
@@ -463,6 +516,14 @@ def do_hardlink():
         flash("No files selected.")
         return redirect(url_for("link_page", src=src, dst=dst, mode=mode, conflict=conflict, clean=("1" if clean_names else "")))
 
+    if not dst:
+        flash("No destination folder set.")
+        return redirect(url_for("link_page", src=src, dst=dst, mode=mode, conflict=conflict, clean=("1" if clean_names else "")))
+
+    if src == dst:
+        flash("Source and destination cannot be the same folder.")
+        return redirect(url_for("link_page", src=src, dst=dst, mode=mode, conflict=conflict, clean=("1" if clean_names else "")))
+
     src_dir_pool = safe_join(DATA_ROOT, src)
     dst_dir_pool = safe_join(DATA_ROOT, dst)
     os.makedirs(dst_dir_pool, exist_ok=True)
@@ -509,7 +570,7 @@ def do_hardlink():
                     dest_real = pool_to_same_branch_dest(basep, os.path.realpath(dest_pool))
                 except OSError as e:
                     raise ValueError(
-                        f"Mergerfs xattr error (file not on mergerfs pool?): {e}"
+                        f"Could not read mergerfs attributes — is this file on a mergerfs pool? ({e})"
                     ) from e
             else:
                 src_real = src_pool
@@ -518,7 +579,7 @@ def do_hardlink():
             final_dest = dest_real
             if os.path.exists(final_dest):
                 if conflict == "skip":
-                    results.append((rel_under, "skipped (exists)"))
+                    results.append((rel_under, "skipped (already exists)"))
                     continue
                 if conflict == "overwrite":
                     if os.path.isdir(final_dest):
@@ -532,17 +593,17 @@ def do_hardlink():
             os.link(src_real, final_dest)
             safe_chown(final_dest)
 
-            results.append((rel_under, f"linked → {final_dest}"))
+            results.append((rel_under, "linked successfully"))
             log(f"OK: '{src_real}' -> '{final_dest}'")
 
         except OSError as e:
             if e.errno == errno.EXDEV:
-                errors.append((rel_under, "EXDEV: different underlying filesystem (branch mismatch)."))
+                errors.append((rel_under, "Cannot hardlink across different filesystems — source and destination must be on the same disk"))
             else:
-                errors.append((rel_under, f"{type(e).__name__}: {e}"))
+                errors.append((rel_under, f"OS error: {e}"))
             log(f"ERR: {rel_under}: {repr(e)}")
         except Exception as e:
-            errors.append((rel_under, f"{type(e).__name__}: {e}"))
+            errors.append((rel_under, str(e)))
             log(f"ERR: {rel_under}: {repr(e)}")
 
     session["results"] = results
