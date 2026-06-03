@@ -27,7 +27,7 @@ jobs:
 
       - name: Get Tag
         id: get_version
-        uses: baileyherbert/version-action@v3
+        uses: baileyherbert/version-action@v4
         
       - name: Build and Push
         uses: docker/build-push-action@v6
